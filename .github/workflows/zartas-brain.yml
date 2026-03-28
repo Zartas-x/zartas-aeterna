@@ -1,4 +1,4 @@
-name: ZARTAS Brain
+name: ZARTAS Brain v2.3
 
 on:
   issues:
@@ -27,6 +27,7 @@ jobs:
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ZARTAS_PAT: ${{ secrets.ZARTAS_PAT }}          # ← НОВОЕ
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
