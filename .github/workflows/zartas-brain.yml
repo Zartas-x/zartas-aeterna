@@ -1,4 +1,4 @@
-name: ZARTAS Brain v2.3
+name: ZARTAS Brain v2.7
 
 on:
   issues:
@@ -8,12 +8,15 @@ jobs:
   think:
     runs-on: ubuntu-latest
     permissions:
+      contents: write      # ← обязательно для записи
       issues: write
-      contents: write
       pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.ZARTAS_PAT }}   # ← используем твой PAT
+          fetch-depth: 0                     # полная история
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -26,8 +29,8 @@ jobs:
       - name: Run ZARTAS
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          ZARTAS_PAT: ${{ secrets.ZARTAS_PAT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ZARTAS_PAT: ${{ secrets.ZARTAS_PAT }}          # ← НОВОЕ
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
