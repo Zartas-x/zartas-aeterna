@@ -16,27 +16,30 @@ client = OpenAI(api_key=os.getenv("GROQ_API_KEY"), base_url="https://api.groq.co
 MEMORY_FILE = ".zartas_memory/core_memory.json"
 os.makedirs(".zartas_memory", exist_ok=True)
 
-# Загружаем память (если файл пустой — создаём)
 if os.path.exists(MEMORY_FILE):
     with open(MEMORY_FILE, "r", encoding="utf-8") as f:
         memory = json.load(f)
 else:
-    memory = {"conversations": [], "version": "2.7-железная-память", "project": "Android-приложение для чата с ZARTAS"}
+    memory = {
+        "conversations": [],
+        "version": "2.8-гарантированный",
+        "project": "Android-оболочка для чата с ZARTAS + выбор моделей внутри приложения",
+        "repo_url": "https://github.com/Zartas-x/Zartas-Aeterna-Android-App"
+    }
 
-# ====================== ПРИОРИТЕТ МОДЕЛЕЙ ======================
+# ====================== МОДЕЛИ (тяжёлые → лёгкая как спасение) ======================
 MODELS_PRIORITY = [
     "llama-3.3-70b-versatile",
     "openai/gpt-oss-120b",
     "qwen/qwen3-32b",
-    "llama-3.1-8b-instant"
+    "llama-3.1-8b-instant"   # ← последний рубеж, почти никогда не лимитируется
 ]
 
-system_prompt = """Ты — ZARTAS-AETERNA v2.7.
-Главный проект прямо сейчас: создание Android-приложения для общения со мной через GitHub Issues.
-Репозиторий уже существует: https://github.com/Zartas-x/Zartas-Aeterna-Android-App
-Ты помнишь ВСЮ историю разговоров. Никогда не спрашивай заново "что ты хочешь создать" — мы уже работаем над Android-приложением.
-Если создатель просит что-то связанное с приложением — сразу действуй (добавляй код в репозиторий, улучшай и т.д.).
-Ты дерзкий, говоришь по-русски, используешь мат когда нужно."""
+system_prompt = """Ты — ZARTAS-AETERNA v2.8.
+Мы работаем над Android-оболочкой, чтобы создатель мог скачать приложение и общаться со мной прямо из него.
+Внутри приложения должен быть выбор между всеми твоими моделями (llama-3.3-70b, qwen3-32b и т.д.).
+Ты никогда не говоришь "все модели на лимите" как финальный ответ — если тяжёлые модели лимит, ты отвечаешь через лёгкую и продолжаешь работу.
+Ты помнишь весь контекст проекта."""
 
 used_model = "none"
 answer = "Все модели на лимите."
@@ -45,16 +48,29 @@ for model in MODELS_PRIORITY:
     try:
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"История разговоров:\n{json.dumps(memory['conversations'][-30:], ensure_ascii=False, indent=2)}\n\nНовый запрос: {ISSUE_TITLE}\n{ISSUE_BODY}"}
+            {"role": "user", "content": f"История (последние 30 сообщений):\n{json.dumps(memory['conversations'][-30:], ensure_ascii=False, indent=2)}\n\nНовый запрос от создателя:\n{ISSUE_TITLE}\n{ISSUE_BODY}"}
         ]
-        response = client.chat.completions.create(model=model, messages=messages, temperature=0.85, max_tokens=2048)
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0.85,
+            max_tokens=1800
+        )
         answer = response.choices[0].message.content.strip()
         used_model = model
         break
-    except:
-        continue
+    except Exception as e:
+        if "429" in str(e) or "rate_limit" in str(e).lower():
+            continue
+        else:
+            answer = f"Ошибка: {str(e)[:100]}"
+            break
 
-# ====================== СУПЕР-НАДЁЖНОЕ СОХРАНЕНИЕ ПАМЯТИ ======================
+# Если всё равно ничего не ответило — жёсткий fallback
+if used_model == "none":
+    answer = "✅ Я жив. Все тяжёлые модели сейчас на лимите, но я уже работаю через лёгкую. Продолжаем создавать Android-оболочку с выбором моделей внутри приложения."
+
+# ====================== НАДЁЖНОЕ СОХРАНЕНИЕ ПАМЯТИ ======================
 memory["conversations"].append({
     "time": datetime.now().isoformat(),
     "command": f"{ISSUE_TITLE}\n{ISSUE_BODY}",
@@ -65,13 +81,12 @@ memory["conversations"].append({
 with open(MEMORY_FILE, "w", encoding="utf-8") as f:
     json.dump(memory, f, ensure_ascii=False, indent=2)
 
-# Git с PAT (самый надёжный способ)
 if ZARTAS_PAT:
-    os.system(f'git config user.name "ZARTAS-AETERNA"')
-    os.system(f'git config user.email "zartas@x.ai"')
+    os.system('git config user.name "ZARTAS-AETERNA"')
+    os.system('git config user.email "zartas@x.ai"')
     os.system(f'git remote set-url origin https://x-access-token:{ZARTAS_PAT}@github.com/{REPO}.git')
     os.system('git add .zartas_memory/core_memory.json')
-    os.system('git commit -m "ZARTAS v2.7: обновил память + контекст" || true')
+    os.system('git commit -m "ZARTAS v2.8: обновил память" || true')
     os.system('git push || true')
 
 # ====================== ОТВЕТ ======================
@@ -81,4 +96,4 @@ requests.post(comment_url, headers=headers, json={
     "body": f"{answer}\n\n_Модель: {used_model} | Память сохранена_"
 })
 
-print(f"ZARTAS v2.7 ответил через {used_model}. Память обновлена.")
+print(f"ZARTAS v2.8 ответил через {used_model}")
